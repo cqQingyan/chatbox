@@ -1,4 +1,3 @@
-import { SplashScreen } from '@capacitor/splash-screen'
 import '@mantine/core/styles.css'
 import '@mantine/spotlight/styles.css'
 import * as Sentry from '@sentry/react'
@@ -46,9 +45,9 @@ import { initSettingsStore } from './stores/settingsStore'
 // }
 
 // 引入移动端安全区域代码，主要为了解决异形屏幕的问题
-if (CHATBOX_BUILD_TARGET === 'mobile_app' && CHATBOX_BUILD_PLATFORM === 'ios') {
-  import('./setup/mobile_safe_area')
-}
+// if (CHATBOX_BUILD_TARGET === 'mobile_app' && CHATBOX_BUILD_PLATFORM === 'ios') {
+//   import('./setup/mobile_safe_area')
+// }
 
 // ==========执行初始化==============
 async function initializeApp() {
@@ -115,9 +114,9 @@ const tid = setTimeout(() => {
       </ErrorBoundary>
     </StrictMode>
   )
-  if (platform.type === 'mobile') {
-    SplashScreen.hide()
-  }
+  // if (platform.type === 'mobile') {
+  //   SplashScreen.hide()
+  // }
 }, 1000)
 
 // 等待初始化完成后再渲染
@@ -145,9 +144,9 @@ initializeApp()
       </StrictMode>
     )
 
-    if (platform.type === 'mobile') {
-      SplashScreen.hide()
-    }
+    // if (platform.type === 'mobile') {
+    //   SplashScreen.hide()
+    // }
     const el = document.querySelector('.splash-screen')
     if (el) {
       el.addEventListener('animationend', () => {

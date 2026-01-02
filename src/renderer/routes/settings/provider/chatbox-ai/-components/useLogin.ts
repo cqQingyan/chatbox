@@ -66,36 +66,6 @@ export function useLogin({ language, onLoginSuccess }: UseLoginParams) {
     retry: false,
   })
 
-  // 移动端从后台回到前台立即检查登录状态
-  useEffect(() => {
-    if (platform.type !== 'mobile' || loginState !== 'polling') {
-      return
-    }
-
-    let listener: any
-    const setupListener = async () => {
-      try {
-        const { App } = await import('@capacitor/app')
-        listener = await App.addListener('appStateChange', (state: { isActive: boolean }) => {
-          if (state.isActive && loginState === 'polling') {
-            // console.log('📱 App returned to foreground, checking login status...')
-            refetch()
-          }
-        })
-      } catch (error) {
-        console.warn('Failed to setup app state listener:', error)
-      }
-    }
-
-    setupListener()
-
-    return () => {
-      if (listener) {
-        listener.remove()
-      }
-    }
-  }, [loginState, refetch])
-
   useEffect(() => {
     if (loginStatus && loginState === 'polling') {
       if (loginStatus.status === 'success') {
@@ -111,16 +81,6 @@ export function useLogin({ language, onLoginSuccess }: UseLoginParams) {
           return
         }
         loginSuccessHandled.current = true
-
-        if (platform.type === 'mobile') {
-          import('@capacitor/browser')
-            .then(({ Browser }) => {
-              Browser.close()
-            })
-            .catch((error) => {
-              console.warn('Failed to close browser:', error)
-            })
-        }
 
         setLoginState('success')
 
