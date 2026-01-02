@@ -41,9 +41,7 @@ if (!(process.platform === 'win32' && process.arch === 'arm64')) {
 
 // 这行代码是解决 Windows 通知的标题和图标不正确的问题，标题会错误显示成 electron.app.Chatbox
 // 参考：https://stackoverflow.com/questions/65859634/notification-from-electron-shows-electron-app-electron
-if (process.platform === 'win32') {
-  app.setAppUserModelId(app.name)
-}
+app.setAppUserModelId(app.name)
 
 const RESOURCES_PATH = app.isPackaged
   ? path.join(process.resourcesPath, 'assets')
@@ -152,16 +150,7 @@ function unregisterShortcuts() {
 
 function createTray() {
   const locale = new Locale()
-  let iconPath = getAssetPath('icon.png')
-  if (process.platform === 'darwin') {
-    // 生成 iconTemplate.png 的命令
-    // gm convert -background none ./iconTemplateRawPreview.png -resize 130% -gravity center -extent 512x512 iconTemplateRaw.png
-    // gm convert ./iconTemplateRaw.png -colorspace gray -negate -threshold 50% -resize 16x16 -units PixelsPerInch -density 72 iconTemplate.png
-    // gm convert ./iconTemplateRaw.png -colorspace gray -negate -threshold 50% -resize 64x64 -units PixelsPerInch -density 144 iconTemplate@2x.png
-    iconPath = getAssetPath('iconTemplate.png')
-  } else if (process.platform === 'win32') {
-    iconPath = getAssetPath('icon.ico')
-  }
+  let iconPath = getAssetPath('icon.ico')
   tray = new Tray(iconPath)
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -347,18 +336,11 @@ async function showOrHideWindow() {
     mainWindow.focus()
     mainWindow.webContents.send('window-show')
   } else if (mainWindow?.isFocused()) {
-    // 解决MacOS全屏下隐藏将黑屏的问题
-    if (mainWindow.isFullScreen()) {
-      mainWindow.setFullScreen(false)
-    }
     mainWindow.hide()
     // mainWindow.minimize()
   } else {
-    // 解决MacOS下无法聚焦的问题
-    mainWindow.hide()
     mainWindow.show()
     mainWindow.focus()
-    // 解决MacOS全屏下无法聚焦的问题
     mainWindow.webContents.send('window-show')
   }
 }
@@ -406,11 +388,7 @@ if (!gotTheLock) {
   })
 
   app.on('window-all-closed', () => {
-    // Respect the OSX convention of having the application in memory even
-    // after all windows have been closed
-    // if (process.platform !== 'darwin') {
-    //     app.quit()
-    // }
+    app.quit()
   })
 
   app
@@ -422,34 +400,21 @@ if (!gotTheLock) {
       // eslint-disable-next-line
       new AppUpdater(() => mainWindow?.webContents.send('update-downloaded', {}))
 
-      // 处理启动时的 Deep Link (Windows/Linux)
-      // macOS 会通过 open-url 事件处理，不需要在这里处理
-      if (process.platform !== 'darwin') {
-        const url = process.argv.find((arg) => arg.startsWith('chatbox://') || arg.startsWith('chatbox-dev://'))
-        if (url && mainWindow) {
-          // 确保窗口加载完成后再处理 Deep Link
-          if (mainWindow.webContents.isLoading()) {
-            mainWindow.webContents.once('did-finish-load', () => {
-              if (mainWindow) {
-                handleDeepLink(mainWindow, url)
-              }
-            })
-          } else {
-            handleDeepLink(mainWindow, url)
-          }
+      // 处理启动时的 Deep Link (Windows)
+      const url = process.argv.find((arg) => arg.startsWith('chatbox://') || arg.startsWith('chatbox-dev://'))
+      if (url && mainWindow) {
+        // 确保窗口加载完成后再处理 Deep Link
+        if (mainWindow.webContents.isLoading()) {
+          mainWindow.webContents.once('did-finish-load', () => {
+            if (mainWindow) {
+              handleDeepLink(mainWindow, url)
+            }
+          })
+        } else {
+          handleDeepLink(mainWindow, url)
         }
       }
-      app.on('activate', () => {
-        // On macOS it's common to re-create a window in the app when the
-        // dock icon is clicked and there are no other windows open.
-        if (mainWindow === null) {
-          createWindow()
-        }
-        if (mainWindow && !mainWindow.isVisible()) {
-          mainWindow.show()
-          mainWindow.focus()
-        }
-      })
+
       // 监听窗口大小位置变化的代码，很大程度参考了 VSCODE 的实现 /Users/benn/Documents/w/vscode/src/vs/platform/windows/electron-main/windowsStateHandler.ts
       // When a window looses focus, save all windows state. This allows to
       // prevent loss of window-state data when OS is restarted without properly
@@ -476,33 +441,6 @@ if (!gotTheLock) {
     })
     .catch(console.log)
 }
-
-// macos uses this event to handle deep links
-app.on('open-url', async (_event, url) => {
-  if (!mainWindow) {
-    // 窗口未创建，立即创建
-    await createWindow()
-  }
-
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore()
-    }
-    mainWindow.show()
-    mainWindow.focus()
-
-    // 确保窗口加载完成后再处理 Deep Link
-    if (mainWindow.webContents.isLoading()) {
-      mainWindow.webContents.once('did-finish-load', () => {
-        if (mainWindow) {
-          handleDeepLink(mainWindow, url)
-        }
-      })
-    } else {
-      handleDeepLink(mainWindow, url)
-    }
-  }
-})
 
 // --------- IPC 监听 ---------
 
@@ -551,19 +489,7 @@ ipcMain.handle('getHostname', () => {
   return os.hostname()
 })
 ipcMain.handle('getDeviceName', () => {
-  if (process.platform === 'darwin') {
-    try {
-      const { execSync } = require('child_process')
-      const computerName = execSync('scutil --get ComputerName', { encoding: 'utf8' }).trim()
-      return computerName || os.hostname()
-    } catch (error) {
-      return os.hostname()
-    }
-  } else if (process.platform === 'win32') {
-    return process.env.COMPUTERNAME || os.hostname()
-  } else {
-    return os.hostname()
-  }
+  return process.env.COMPUTERNAME || os.hostname()
 })
 ipcMain.handle('getLocale', () => {
   try {
@@ -682,13 +608,8 @@ ipcMain.handle('install-update', () => {
 })
 
 ipcMain.handle('switch-theme', (event, theme: 'dark' | 'light') => {
-  if (!mainWindow || process.platform !== 'darwin' || typeof mainWindow.setTitleBarOverlay !== 'function') {
-    return
-  }
-  mainWindow.setTitleBarOverlay({
-    color: theme === 'dark' ? '#282828' : 'white',
-    symbolColor: theme === 'dark' ? 'white' : 'black',
-  })
+  // macOS specific implementation removed
+  return
 })
 
 ipcMain.handle('window:minimize', () => {
